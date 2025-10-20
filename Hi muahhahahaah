@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>التقاط صورة تلقائياً</title>
+  <style>
+    body{font-family:system-ui,Segoe UI,Arial; padding:16px}
+    #overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);color:#fff;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px}
+    #video{display:none} /* نخفي الفيديو لأنك تريد التقاط فوراً */
+    img{max-width:100%;height:auto;margin-top:12px;border:2px solid #ddd}
+  </style>
+</head>
+<body>
+  <h3>التقاط صورة (بعد السماح)</h3>
+  <p id="status">جاري الانتظار لطلب الإذن...</p>
+
+  <div id="overlay">
+    <div style="max-width:320px;text-align:center">
+      <p>الموقع يحتاج إذن الوصول للكاميرا لالتقاط صورة.</p>
+      <p style="font-size:13px;opacity:.9">اضغط سماح عندما يطلب المتصفح ذلك.</p>
+    </div>
+  </div>
+
+  <video id="video" autoplay playsinline></video>
+  <img id="photo" alt="الصورة الملتقطة" style="display:none" />
+
+  <script>
+    (async () => {
+      const status = document.getElementById('status');
+      const overlay = document.getElementById('overlay');
+      const video = document.getElementById('video');
+      const photo = document.getElementById('photo');
+
+      if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+        status.textContent = 'الصفحة تحتاج HTTPS للعمل. استضفها عبر GitHub Pages أو Netlify.';
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
+
+        // خبّي overlay بعد الموافقة
+        overlay.style.display = 'none';
+        status.textContent = 'تم السماح بالكاميرا، جارٍ التقاط الصورة...';
+
+        video.srcObject = stream;
+        await video.play();
+
+        // التقط إطار أول بمجرد تشغيل الفيديو
+        const canvas = document.createElement('canvas');
+        canvas.width = video.videoWidth || 640;
+        canvas.height = video.videoHeight || 480;
+        const ctx = canvas.getContext('2d');
+
+        // عكس الصورة لأن الكاميرا الأمامية عادة تعكس
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+        photo.src = canvas.toDataURL('image/jpeg', 0.9);
+        photo.style.display = 'block';
+        status.textContent = 'تم التقاط الصورة.';
+
+        // أوقف الكاميرا
+        stream.getTracks().forEach(t => t.stop());
+
+        // --- لو تريد رفع الصورة للسيرفر أرسل الـdataURL أو Blob ---
+        // const blob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
+      } catch (err) {
+        console.error(err);
+        status.textContent = 'فشل الوصول للكاميرا: ' + (err.message || err.name);
+        overlay.style.display = 'block';
+        overlay.querySelector('p').textContent = 'رفضت الوصول أو المتصفح لا يدعم getUserMedia.';
+      }
+    })();
+  </script>
+</body>
+</html>
