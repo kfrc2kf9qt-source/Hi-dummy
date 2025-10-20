@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>التقاط صورة تلقائيًا</title>
+<style>
+  body{font-family:system-ui,Segoe UI,Arial; padding:16px; text-align:center;}
+  #video{display:none;}
+  #photo{max-width:100%; border:2px solid #ccc; margin-top:12px;}
+</style>
+</head>
+<body>
+<h2>التقاط صورة من الكاميرا الأمامية</h2>
+<p id="status">جاري طلب إذن الكاميرا...</p>
+
+<video id="video" autoplay playsinline></video>
+<img id="photo" alt="الصورة الملتقطة" style="display:none;"/>
+
+<script>
+(async ()=>{
+  const status = document.getElementById('status');
+  const video = document.getElementById('video');
+  const photo = document.getElementById('photo');
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:"user", width:{ideal:1280}, height:{ideal:720}},
+      audio:false
+    });
+
+    status.textContent = 'تم السماح بالكاميرا، جارٍ التقاط الصورة...';
+    video.srcObject = stream;
+    await video.play();
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+
+    // عكس الصورة للكاميرا الأمامية
+    ctx.translate(canvas.width,0);
+    ctx.scale(-1,1);
+    ctx.drawImage(video,0,0,canvas.width,canvas.height);
+
+    photo.src = canvas.toDataURL('image/jpeg',0.9);
+    photo.style.display = 'block';
+    status.textContent = 'تم التقاط الصورة.';
+
+    // إيقاف الكاميرا بعد التقاط الصورة
+    stream.getTracks().forEach(t=>t.stop());
+  } catch(err){
+    console.error(err);
+    status.textContent = 'فشل الوصول للكاميرا أو تم رفض الإذن.';
+  }
+})();
+</script>
+</body>
+</html>
